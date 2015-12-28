@@ -1,6 +1,9 @@
 # encoding: utf-8
 require "logstash/outputs/base"
 require "logstash/namespace"
+require "openssl"
+require "net/http"
+require "json"
 
 class LogStash::Outputs::Slack < LogStash::Outputs::Base
   config_name "slack"
@@ -27,6 +30,9 @@ class LogStash::Outputs::Slack < LogStash::Outputs::Base
   # Attachments array as described https://api.slack.com/docs/attachments
   config :attachments, :validate => :array
 
+  # Proxy host
+  config :proxy, :validate => :string
+
   public
   def register
     require 'rest-client'
@@ -37,6 +43,18 @@ class LogStash::Outputs::Slack < LogStash::Outputs::Base
   end # def register
 
   public
+
+  def notify_alert_on_slack(payload)
+    uri = URI.parse(@url).host
+    https = Net::HTTP::Proxy(@proxy, 8888).new(uri.host, 443)
+    https.use_ssl = true
+    https.verify_mode = OpenSSL::SSL::VERIFY_PEER
+
+    post_data = URI.encode_www_form({"payload" => JSON.dump(payload_json)})
+    https.request_post(uri.path, post_data)
+  end
+
+
   def receive(event)
     return unless output?(event)
 
@@ -74,16 +92,7 @@ class LogStash::Outputs::Slack < LogStash::Outputs::Base
     end
 
     begin
-      RestClient.post(
-        @url,
-        "payload=#{CGI.escape(JSON.dump(payload_json))}",
-        :accept => "application/json",
-        :'User-Agent' => "logstash-output-slack",
-        :content_type => @content_type) { |response, request, result, &block|
-          if response.code != 200
-            @logger.warn("Got a #{response.code} response: #{response}")
-          end
-        }
+      notify_alert_on_slack(payload)
     rescue Exception => e
       @logger.warn("Unhandled exception", :exception => e,
                    :stacktrace => e.backtrace)
