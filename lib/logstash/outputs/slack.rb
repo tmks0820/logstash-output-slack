@@ -45,7 +45,7 @@ class LogStash::Outputs::Slack < LogStash::Outputs::Base
   public
 
   def notify_alert_on_slack(payload_json)
-    uri = URI.parse(@url).host
+    uri = URI.parse(@url)
     https = Net::HTTP::Proxy(@proxy, 8888).new(uri.host, 443)
     https.use_ssl = true
     https.verify_mode = OpenSSL::SSL::VERIFY_PEER
