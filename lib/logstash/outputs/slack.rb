@@ -44,7 +44,7 @@ class LogStash::Outputs::Slack < LogStash::Outputs::Base
 
   public
 
-  def notify_alert_on_slack(payload)
+  def notify_alert_on_slack(payload_json)
     uri = URI.parse(@url).host
     https = Net::HTTP::Proxy(@proxy, 8888).new(uri.host, 443)
     https.use_ssl = true
@@ -92,7 +92,7 @@ class LogStash::Outputs::Slack < LogStash::Outputs::Base
     end
 
     begin
-      notify_alert_on_slack(payload)
+      notify_alert_on_slack(payload_json)
     rescue Exception => e
       @logger.warn("Unhandled exception", :exception => e,
                    :stacktrace => e.backtrace)
